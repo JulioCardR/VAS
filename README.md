@@ -22,3 +22,7 @@ To make your own build:
 
 * I don't remeber my master password, what should I do?
   * Just delete the VAS.conf file, go through the setup and add your accounts again. VAS is not there to remeber your account information, it's just a tool to make it easier for you to login.
+
+# Still to come:
+* tab and enter support
+* Might change the way encryption works to make it more secure.
