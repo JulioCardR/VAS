@@ -12,7 +12,7 @@
 //
 //	check bugs with @													//	SEEMS FIXED
 //
-//	look into adding tabbing/enter support on menus						// Prolly gonna subclass some controls
+//	look into adding tabbing/enter support on menus						// Looks good
 //
 //	add RiotClient.exe as the main file type on the explorer box		//	DONE
 //
@@ -41,6 +41,9 @@
 #define CONFIRM_DELETE_BTN 109	//
 #define CANCEL_DELETE_BTN 110	//
 
+#define GWL_HWNDPARENT -8	//	Defining hwnd parent
+#define GWL_WNDPROC -4		//	Defining window proc
+
 #define WM_COMPLETE (WM_USER + 2)	//	Used during the login process to update the window
 #define WM_COMPLETE2 (WM_USER + 3)	//
 
@@ -51,14 +54,21 @@ void AddControlsMainMenu(HWND hwnd);																//
 void SetUpWindow(HINSTANCE currentInstance);													//
 LRESULT CALLBACK SetUpWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam);	//	Setup Functions
 void AddControlsSetUp(HWND hwnd);																//
+void SendToCustomProcSetUp(HWND hwnd);															//
+LRESULT CALLBACK SetUpCustomProc(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam);				//
+
 
 void CheckPassword(HINSTANCE currentInstance);													//
 LRESULT CALLBACK CHKPWWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam);	//	Check Password Functions
 void AddControlsCheckPass(HWND hwnd);															//
+void SetCustomProcChkPw(HWND hwnd);																//
+LRESULT CALLBACK CheckPassCustomProc(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam);			//
 
 void AddAccWindow(HINSTANCE currentInstance);													//
 LRESULT CALLBACK AddAccWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam);	//	Add Account Functions
 void AddControlsAddAcc(HWND hwnd);																//
+void SendToCustomProcAddAcc(HWND hwnd);															//
+LRESULT CALLBACK AddAccCustomProc(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam);			//
 
 string OpenFileBox(HWND hwnd);		//	Openfile to get the path to "RiotClient"
 string ConvertToString(HWND input);	//	Converting edit controls to strings
@@ -83,6 +93,8 @@ void AddControlsRankedLogin(HWND hwnd);																	//
 void ChangeAccWindow(HINSTANCE currentInstance);													//
 LRESULT CALLBACK ChangeAccWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam);	//	Change Account Info Functions
 void AddControlsChangeAcc(HWND hwnd);																//
+void SendToCustomProcChangeAcc(HWND hwnd);															//
+LRESULT CALLBACK ChangeAccCustomProc(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam);				//
 
 void DeleteAccWindow(HINSTANCE currentInstance);													//
 LRESULT CALLBACK DeleteAccWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam);	//	Confirm Delete Account Functions
@@ -106,6 +118,7 @@ vector<UINT> CHANGES_ACC;			//	Vector for the change account info buttons HMENUS
 int LOGIN_ID;						//	Will store the wanted ID
 int SELECTED_RANK = -1;				//	Will store the wanted rank
 vector<int> ALL_RANKS_BTN = { 200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218 };	//	Vector containg all ranks
+WNDPROC Normal_Proc;				//	Will store the standart window proc
 
 
 int WINAPI WinMain(HINSTANCE currentInstance, HINSTANCE previousInstance, PSTR cmdLine, INT cmdCount) {
@@ -433,14 +446,57 @@ void AddControlsSetUp(HWND hwnd) {
 	//
 	CreateWindow("static", "Master Password:", WS_VISIBLE | WS_CHILD, 5, 10, 200, 20, hwnd, NULL, NULL, NULL);
 	pw1 = CreateWindow("Edit", NULL, WS_VISIBLE | WS_CHILD | ES_PASSWORD | ES_AUTOHSCROLL, 5, 30, 200, 20, hwnd, NULL, NULL, NULL);
+	SetFocus(pw1);				//	setting focus to the first password edit box
+	SendToCustomProcSetUp(pw1);	//	sending to custom proc
 
 	CreateWindow("static", "Repeat Master Password:", WS_VISIBLE | WS_CHILD, 5, 50, 200, 20, hwnd, NULL, NULL, NULL);
 	pw2 = CreateWindow("Edit", NULL, WS_VISIBLE | WS_CHILD | ES_PASSWORD | ES_AUTOHSCROLL, 5, 70, 200, 20, hwnd, NULL, NULL, NULL);
+	SendToCustomProcSetUp(pw2);	//	sending to custom proc
 
 	CreateWindow("static", "Please add your RIOT CLIENT for Valorant: (NOT VALORANT.EXE)", WS_VISIBLE | WS_CHILD | ES_AUTOVSCROLL, 5, 90, 300, 40, hwnd, NULL, NULL, NULL);
 	CreateWindow("Button", "Select File.", WS_VISIBLE | WS_CHILD | WS_BORDER, 5, 130, 130, 20, hwnd, (HMENU)SELECT_FILE_SETUP, NULL, NULL);
 
 	CreateWindow("Button", "Confirm.", WS_VISIBLE | WS_CHILD, 5, 160, 80, 20, hwnd, (HMENU)SETUP_OK, NULL, NULL);
+}
+
+void SendToCustomProcSetUp(HWND hwnd) {
+	Normal_Proc = (WNDPROC)GetWindowLongPtr(hwnd, GWL_WNDPROC);			//	saving the default proc
+	SetWindowLongPtr(hwnd, GWL_WNDPROC, (LONG_PTR)SetUpCustomProc);		//	sending it to the custom proc
+}
+
+LRESULT CALLBACK SetUpCustomProc(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam) {
+	switch (msg) {
+	case WM_KEYDOWN:
+	{
+		switch (param) {
+		case VK_TAB:
+		{
+			if (hwnd == pw1) {
+				SetFocus(pw2);
+			}
+			else {
+				SetFocus(pw1);
+			}
+			return 0;
+		}
+		case VK_RETURN:
+		{
+			if (FILE_PATH_EXIST == FALSE) {
+				HWND parent_hwnd = (HWND)GetWindowLongPtr(hwnd, GWL_HWNDPARENT);					//	Get parent whnd
+				SendMessage(parent_hwnd, WM_COMMAND, (WPARAM)MAKELPARAM(SELECT_FILE_SETUP, 0), 0);	//	Send button press
+			}
+			else {
+				HWND parent_hwnd = (HWND)GetWindowLongPtr(hwnd, GWL_HWNDPARENT);				//	Get parent whnd
+				SendMessage(parent_hwnd, WM_COMMAND, (WPARAM)MAKELPARAM(SETUP_OK, 0), 0);		//	Send button press
+			}
+		}
+		}
+	}
+	default:
+	{
+		return CallWindowProc(Normal_Proc, hwnd, msg, param, lparam);
+	}
+	}
 }
 
 string OpenFileBox(HWND hwnd) {
@@ -546,6 +602,34 @@ void AddControlsCheckPass(HWND hwnd) {
 	CreateWindow("static", "Please enter your Master Password:", WS_VISIBLE | WS_CHILD, 5, 5, 200, 20, hwnd, NULL, NULL, NULL);
 	checkpw = CreateWindow("Edit", NULL, WS_VISIBLE | WS_CHILD | ES_PASSWORD | ES_AUTOHSCROLL, 5, 30, 200, 20, hwnd, NULL, NULL, NULL);
 	CreateWindow("button", "Confirm", WS_VISIBLE | WS_CHILD | WS_BORDER, 5, 80, 90, 20, hwnd, (HMENU)CHECK_PASSWD, NULL, NULL);
+	SetFocus(checkpw);				//	Focusing on the edit box
+	SetCustomProcChkPw(checkpw);	//	Custom proc for the edit box
+}
+
+void SetCustomProcChkPw(HWND hwnd) {
+	Normal_Proc = (WNDPROC)GetWindowLongPtr(hwnd, GWL_WNDPROC);			//	saving the default proc
+	SetWindowLongPtr(hwnd, GWL_WNDPROC, (LONG_PTR)CheckPassCustomProc);	//	sending it to the custom proc
+}
+
+LRESULT CALLBACK CheckPassCustomProc(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam) {
+	switch (msg) {
+	case WM_KEYDOWN:
+	{
+		switch (param) {
+		case VK_RETURN:
+		{
+			HWND parent_hwnd = (HWND)GetWindowLongPtr(hwnd, GWL_HWNDPARENT);				//	Get parent whnd
+			SendMessage(parent_hwnd, WM_COMMAND, (WPARAM)MAKELPARAM(CHECK_PASSWD, 0), 0);	//	Send button press
+			return 0;
+		}
+		
+		}
+	}
+	default:
+	{
+		return CallWindowProc(Normal_Proc, hwnd, msg, param, lparam);
+	}
+	}
 }
 
 void AddAccWindow(HINSTANCE currentInstance) {
@@ -577,7 +661,7 @@ void AddAccWindow(HINSTANCE currentInstance) {
 }
 
 LRESULT CALLBACK AddAccWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam) {
-
+	
 	switch (msg) {
 	case WM_CREATE:
 	{
@@ -646,19 +730,70 @@ LRESULT CALLBACK AddAccWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, 
 }
 
 void AddControlsAddAcc(HWND hwnd) {
+
 	//	controls for the add account menu
 	CreateWindow("Static", "ACC Nickname(not you Val username):", WS_VISIBLE | WS_CHILD , 5, 5, 250, 20, hwnd, NULL, NULL, NULL);
 	addnick = CreateWindow("Edit", NULL, WS_VISIBLE | WS_CHILD, 5, 30, 250, 20, hwnd, NULL, NULL, NULL);
+	SendToCustomProcAddAcc(addnick);	//	sending to custom proc
+	SetFocus(addnick);					//	Setting focus to nickname edit box
 
 	CreateWindow("Static", "Username:", WS_VISIBLE | WS_CHILD, 5, 55, 250, 20, hwnd, NULL, NULL, NULL);
 	adduname = CreateWindow("Edit", NULL, WS_VISIBLE | WS_CHILD, 5, 80, 250, 20, hwnd, NULL, NULL, NULL);
-
+	SendToCustomProcAddAcc(adduname);	//	sending to custom proc
+		
 	CreateWindow("Static", "Password:", WS_VISIBLE | WS_CHILD, 5, 105, 250, 20, hwnd, NULL, NULL, NULL);
 	addpw = CreateWindow("Edit", NULL, WS_VISIBLE | WS_CHILD | ES_PASSWORD, 5, 130, 250, 20, hwnd, NULL, NULL, NULL);
+	SendToCustomProcAddAcc(addpw);		//	sending to custom proc
 
 	CreateWindow("Button", "Add Rank.", WS_VISIBLE | WS_CHILD | WS_BORDER, 5, 155, 95, 20, hwnd, (HMENU)RANK_WINDOW, NULL, NULL);
 
 	CreateWindow("Button", "Add Account.", WS_VISIBLE | WS_CHILD | WS_BORDER, 5, 180, 95, 20, hwnd, (HMENU)ADD_ACCOUNT, NULL, NULL);
+}
+
+void SendToCustomProcAddAcc(HWND hwnd) {
+	Normal_Proc = (WNDPROC)GetWindowLongPtr(hwnd, GWL_WNDPROC);			//	saving the default proc
+	SetWindowLongPtr(hwnd, GWL_WNDPROC, (LONG_PTR)AddAccCustomProc);	//	sending it to the custom proc
+}
+
+LRESULT CALLBACK AddAccCustomProc(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam) {
+	switch (msg) {
+	case WM_KEYDOWN:
+	{
+		switch (param) {
+		case VK_TAB:
+		{
+			if (hwnd == addnick) {
+				SetFocus(adduname);
+			}
+			else {
+				if (hwnd == adduname) {
+					SetFocus(addpw);
+				}
+				else {
+					SetFocus(addnick);
+				}
+			}
+			return 0;
+		}
+		case VK_RETURN:
+		{
+			if (SELECTED_RANK == -1) {
+				HWND parent_hwnd = (HWND)GetWindowLongPtr(hwnd, GWL_HWNDPARENT);				//	Get parent whnd
+				SendMessage(parent_hwnd, WM_COMMAND, (WPARAM)MAKELPARAM(RANK_WINDOW, 0), 0);	//	Send button press
+			}
+			else {
+				HWND parent_hwnd = (HWND)GetWindowLongPtr(hwnd, GWL_HWNDPARENT);				//	Get parent whnd
+				SendMessage(parent_hwnd, WM_COMMAND, (WPARAM)MAKELPARAM(ADD_ACCOUNT, 0), 0);	//	Send button press
+			}
+			return 0;
+		}
+		}
+	}
+	default:
+	{
+		return CallWindowProc(Normal_Proc, hwnd, msg, param, lparam);
+	}
+	}
 }
 
 string ConvertToString(HWND input) {
@@ -1099,16 +1234,60 @@ void AddControlsChangeAcc(HWND hwnd) {
 	
 	CreateWindow("static", "Nickname:", WS_VISIBLE | WS_CHILD, 5, 50, 80, 20, hwnd, NULL, NULL, NULL);
 	chnick = CreateWindow("edit", NULL, WS_VISIBLE | WS_CHILD, 90, 50, 250, 20, hwnd, NULL, NULL, NULL);
+	SendToCustomProcChangeAcc(chnick);		//	sending to custom proc
+	SetFocus(chnick);						//	setting focus to nickname edit box
 
 	CreateWindow("static", "Username:", WS_VISIBLE | WS_CHILD, 5, 75, 80, 20, hwnd, NULL, NULL, NULL);
 	chuname = CreateWindow("edit", NULL, WS_VISIBLE | WS_CHILD, 90, 75, 250, 20, hwnd, NULL, NULL, NULL);
+	SendToCustomProcChangeAcc(chuname);		//	sending to custom proc
 
 	CreateWindow("static", "Password:", WS_VISIBLE | WS_CHILD, 5, 100, 80, 20, hwnd, NULL, NULL, NULL);
 	chpw = CreateWindow("edit", NULL, WS_VISIBLE | WS_CHILD | ES_PASSWORD, 90, 100, 250, 20, hwnd, NULL, NULL, NULL);
+	SendToCustomProcChangeAcc(chpw);		//	sending to custom proc
 
 	CreateWindow("button", "Confirm.", WS_VISIBLE | WS_CHILD | WS_BORDER, 5, 125, 75, 20, hwnd, (HMENU)CHANGE_ACC_BTN, NULL, NULL);
 
 	CreateWindow("button", "DELETE ACC", WS_VISIBLE | WS_CHILD | WS_BORDER, 250, 125, 105, 20, hwnd, (HMENU)DELETE_ACC_BTN, NULL, NULL);
+}
+
+void SendToCustomProcChangeAcc(HWND hwnd) {
+	Normal_Proc = (WNDPROC)GetWindowLongPtr(hwnd, GWL_WNDPROC);			//	saving the default proc
+	SetWindowLongPtr(hwnd, GWL_WNDPROC, (LONG_PTR)ChangeAccCustomProc);	//	sending it to the custom proc
+}
+
+LRESULT CALLBACK ChangeAccCustomProc(HWND hwnd, UINT msg, WPARAM param, LPARAM lparam) {
+	switch (msg) {
+	case WM_KEYDOWN:
+	{
+		switch (param) {
+		case VK_TAB:
+		{
+			if (hwnd == chnick) {
+				SetFocus(chuname);
+			}
+			else {
+				if (hwnd == chuname) {
+					SetFocus(chpw);
+				}
+				else {
+					SetFocus(chnick);
+				}
+			}
+			return 0;
+		}
+		case VK_RETURN:
+		{
+			HWND parent_hwnd = (HWND)GetWindowLongPtr(hwnd, GWL_HWNDPARENT);				//	Get parent whnd
+			SendMessage(parent_hwnd, WM_COMMAND, (WPARAM)MAKELPARAM(CHANGE_ACC_BTN, 0), 0);	//	Send button press
+			return 0;
+		}
+		}
+	}
+	default:
+	{
+		return CallWindowProc(Normal_Proc, hwnd, msg, param, lparam);
+	}
+	}
 }
 
 void DeleteAccWindow(HINSTANCE currentInstance) {
