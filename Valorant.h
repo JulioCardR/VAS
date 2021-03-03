@@ -372,18 +372,48 @@ inline string GetFromFile(string key) {
 }
 
 inline int comparerank(int therank){
+	//	NEW RULE: 02/MARCH/2021
+	//	IRON 1 - BRONZE 3 CAN PLAY WITH UP TO SILVER 3	
+	//	SILVER 1 - PLAT 3 SAME RULE AS IT WAS
+	//	RADIANT CAN ONLY PLAY WITH IMORTALS
+	//	IMORTAL CAN PLAY WITH DIAMOND
+	int high, low;
+
 	if (GetLastId() != -1) {
+		//	Checking if the rank < silver
+		if (therank < 6) {
+			//	=< silver ranks can play with iron 1 to silver 3
+			low = 0;
+			high = 8;
+		}
+		else {
+			// > silver ranks can only play with ppl 3 ranks above or below
+			if (therank > 5 && therank < 9) {
+				low = 0;
+			}
+			else {
+				low = therank - 4;
+			}
+			high = therank + 4;
+		}
+
 		for (int i = 0; i <= GetLastId(); i++) {
-			int high = (therank + 4);
-			int low = (therank - 4);
-			
 			stringstream ss;
 			ss << "rank" << i << ":";
 			string info = GetFromFile(ss.str());
 			int intinfo = atoi(info.c_str());
 
 			if (intinfo > low && intinfo < high) {
-				return i;
+				//	make sure the account is not Radiant
+				if (intinfo == 19) {
+					//	radiant accounts can only play with imortals
+					if (therank == 18) {
+						return i;
+					}
+				}
+				else {
+					return i;
+				}
 			}
 		}
 		return -1;
@@ -553,7 +583,13 @@ inline string RankToString(int rank) {
 	}
 	case 18:
 	{
-		str = "IM/RAD";
+		str = "IM";
+		break;
+	}
+
+	case 19:
+	{
+		str = "RAD";
 		break;
 	}
 	default:

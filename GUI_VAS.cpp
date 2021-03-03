@@ -117,7 +117,7 @@ vector<UINT> RANK_ACC;				//	Vector for the Change Rank buttons HMENUS
 vector<UINT> CHANGES_ACC;			//	Vector for the change account info buttons HMENUS
 int LOGIN_ID;						//	Will store the wanted ID
 int SELECTED_RANK = -1;				//	Will store the wanted rank
-vector<int> ALL_RANKS_BTN = { 200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218 };	//	Vector containg all ranks
+vector<int> ALL_RANKS_BTN = { 200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219 };	//	Vector containg all ranks
 WNDPROC Normal_Proc;				//	Will store the standart window proc
 
 
@@ -489,6 +489,7 @@ LRESULT CALLBACK SetUpCustomProc(HWND hwnd, UINT msg, WPARAM param, LPARAM lpara
 				HWND parent_hwnd = (HWND)GetWindowLongPtr(hwnd, GWL_HWNDPARENT);				//	Get parent whnd
 				SendMessage(parent_hwnd, WM_COMMAND, (WPARAM)MAKELPARAM(SETUP_OK, 0), 0);		//	Send button press
 			}
+			return 0;
 		}
 		}
 	}
@@ -946,7 +947,7 @@ void SelectRankWindow(HINSTANCE currentInstance) {
 	CreateWindow(CLASS_NAME, "GUI VAS - RANKS",
 		WS_OVERLAPPEDWINDOW | WS_VISIBLE,			//style
 		CW_USEDEFAULT, CW_USEDEFAULT,				//initial position
-		300, 300,									//size
+		220, 300,									//size
 		nullptr, nullptr, nullptr, nullptr);
 
 	//window loop
@@ -967,7 +968,7 @@ LRESULT CALLBACK RankWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, LP
 	}
 	case WM_COMMAND:
 	{
-		for (int i = 0; i < 19; i++) {
+		for (int i = 0; i < 20; i++) {
 			if (ALL_RANKS_BTN[i] == param) {				//	checking what rank button was used
 				SELECTED_RANK = (ALL_RANKS_BTN[i] - 200);	//	sending the rank to the global variable
 			}
@@ -1011,7 +1012,8 @@ void AddControlsRankWindow(HWND hwnd) {
 	CreateWindow("button", "DI1", WS_VISIBLE | WS_CHILD | WS_BORDER, 5,		180, 50, 30, hwnd, (HMENU)(UINT_PTR)ALL_RANKS_BTN[15], NULL, NULL);
 	CreateWindow("button", "DI2", WS_VISIBLE | WS_CHILD | WS_BORDER, 60,	180, 50, 30, hwnd, (HMENU)(UINT_PTR)ALL_RANKS_BTN[16], NULL, NULL);
 	CreateWindow("button", "DI3", WS_VISIBLE | WS_CHILD | WS_BORDER, 115,	180, 50, 30, hwnd, (HMENU)(UINT_PTR)ALL_RANKS_BTN[17], NULL, NULL);
-	CreateWindow("button", "IM/RAD", WS_VISIBLE | WS_CHILD | WS_BORDER, 5,	215, 160, 30, hwnd, (HMENU)(UINT_PTR)ALL_RANKS_BTN[18], NULL, NULL);
+	CreateWindow("button", "IM", WS_VISIBLE | WS_CHILD | WS_BORDER, 5,	215, 75, 30, hwnd, (HMENU)(UINT_PTR)ALL_RANKS_BTN[18], NULL, NULL);
+	CreateWindow("button", "RAD", WS_VISIBLE | WS_CHILD | WS_BORDER, 90, 215, 75, 30, hwnd, (HMENU)(UINT_PTR)ALL_RANKS_BTN[19], NULL, NULL);
 }
 
 void RankedLoginWindow(HINSTANCE currentInstance) {
@@ -1105,7 +1107,7 @@ LRESULT CALLBACK RankedLoginWindowProcessMessages(HWND hwnd, UINT msg, WPARAM pa
 
 void AddControlsRankedLogin(HWND hwnd) {
 	//	adding controls for the ranked based login window
-	CreateWindow("static", "Select the lowest rank on your party.", WS_VISIBLE | WS_CHILD, 5, 5, 200, 40, hwnd, NULL, NULL, NULL);
+	CreateWindow("static", "Select the rank you want to play with.", WS_VISIBLE | WS_CHILD, 5, 5, 200, 40, hwnd, NULL, NULL, NULL);
 	CreateWindow("button", "Select Rank.", WS_VISIBLE | WS_CHILD, 5, 50, 75, 20, hwnd, (HMENU)RANK_WINDOW, NULL, NULL);
 }
 
