@@ -10,6 +10,7 @@
 #include "files.h"
 #include "aes.h"
 #include "modes.h"
+#include "osrng.h"
 
 #ifdef _WIN32
 	#include <windows.h>
@@ -20,19 +21,58 @@
 
 using namespace std;
 
-inline string encrypt(string msg, string hkey) {
+inline CryptoPP::SecByteBlock CreateIVFromID(CryptoPP::SecByteBlock OriginalIV, int ID) {
+	using namespace CryptoPP;
+	//system("pause");
+	SecByteBlock NewIV(AES::BLOCKSIZE);
+	memset(NewIV, ID, AES::BLOCKSIZE);
 
-	// this encryption/decryption uses a fixed iv and a different key (based on user input).
-	// i know this is not a secure way of doing, encryption is just here as a simple barrier. 
-	// this program should only run locally on a trusted machine.
-	// if someone has access to your machine and wants your info they would be able to get it.
+	cout << "NEWIV: " << NewIV << endl;
+
+	NewIV.operator+(OriginalIV);
+
+	return NewIV;
+}
+
+inline CryptoPP::SecByteBlock CreateIV() {
+	using namespace CryptoPP;
+	SecByteBlock iv(AES::BLOCKSIZE);
+	AutoSeededRandomPool rnd;
+	rnd.GenerateBlock(iv, iv.size());
+	return iv;
+}
+
+inline string ByteToString(CryptoPP::SecByteBlock BB) {
+	using namespace CryptoPP;
+
+	string ByteAsString(reinterpret_cast<const char*>(&BB[0]), BB.size());
+
+	string StringByte;
+
+	StringSource ss(ByteAsString, true, new HexEncoder(new StringSink(StringByte)));
+
+	return StringByte;
+}
+
+inline CryptoPP::SecByteBlock StringToByte(string BS) {
+	using namespace CryptoPP;
+
+	string decodedmsg;
+
+	StringSource ss(BS, true, new HexDecoder(new StringSink(decodedmsg)));			//	Hex D ecoder you dumbdumb
+																					// not HexEncoder	FeelsWeirdMan
+
+	SecByteBlock SBB(reinterpret_cast<const byte*>(&decodedmsg[0]), decodedmsg.size());
+
+	return SBB;
+}
+
+inline string encrypt(string msg, string hkey, CryptoPP::SecByteBlock iv) {
 
 	using namespace CryptoPP;
 
 	byte key[AES::MAX_KEYLENGTH]; //creating a 32Bytes/256bits key
-	byte iv[AES::BLOCKSIZE];
 	memcpy(key, hkey.c_str(), AES::MAX_KEYLENGTH);
-	memset(iv, 0x20, AES::BLOCKSIZE);
 
 	string cipheredtext;
 
@@ -43,37 +83,22 @@ inline string encrypt(string msg, string hkey) {
 	stfEncryptor.Put(reinterpret_cast<const unsigned char*>(msg.c_str()), msg.length() + 1);
 	stfEncryptor.MessageEnd();
 
-	//cout << "String out of encryption: " << cipheredtext << endl;
-
 	string encodedcipheredtext;
 	StringSource ss(cipheredtext, true, new HexEncoder(new StringSink(encodedcipheredtext)));
-
-	//cout << "String after transformation: " << encodedcipheredtext << endl;
 
 	return encodedcipheredtext;
 }
 
-inline string decrypt(string msg, string hkey) {
-
-	// this encryption/decryption uses a fixed iv and a different key (based on user input).
-	// i know this is not a secure way of doing, encryption is just here as a simple barrier. 
-	// this program should only run locally on a trusted machine.
-	// if someone has access to your machine and wants your info they would be able to get it.
+inline string decrypt(string msg, string hkey, CryptoPP::SecByteBlock iv) {
 
 	using namespace CryptoPP;
 	string decryptedtext;
 
-	//cout << "hex msg: " << msg << endl;
-
 	string decodedmsg;
 	StringSource ss(msg, true, new HexDecoder(new StringSink(decodedmsg)));
 
-	//cout << "cyphered text: " << decodedmsg << endl;
-
 	byte key[AES::MAX_KEYLENGTH]; //creating a 32Bytes/256bits key
-	byte iv[AES::BLOCKSIZE];
 	memcpy(key, hkey.c_str(), AES::MAX_KEYLENGTH);
-	memset(iv, 0x20, AES::BLOCKSIZE);
 
 	AES::Decryption aesDecrypt(key, AES::MAX_KEYLENGTH);
 	CryptoPP::CBC_Mode_ExternalCipher::Decryption cbcDecrypt(aesDecrypt, iv);
@@ -82,10 +107,7 @@ inline string decrypt(string msg, string hkey) {
 	stfDecrypt.Put(reinterpret_cast<const unsigned char*>(decodedmsg.c_str()), decodedmsg.size());
 	stfDecrypt.MessageEnd();
 
-	//cout << "decrypted text: " << decryptedtext << endl;
-
 	return decryptedtext;
-
 }
 
 inline void checkcaps() {
@@ -383,13 +405,13 @@ inline int comparerank(int therank){
 		//	Checking if the rank < silver
 		if (therank < 6) {
 			//	=< silver ranks can play with iron 1 to silver 3
-			low = 0;
+			low = -1;
 			high = 8;
 		}
 		else {
 			// > silver ranks can only play with ppl 3 ranks above or below
 			if (therank > 5 && therank < 9) {
-				low = 0;
+				low = -1;
 			}
 			else {
 				low = therank - 4;
@@ -644,7 +666,7 @@ inline void SendToFile(string msg){
 	VASFile.close();
 }
 
-inline void AddAcc(string nickname, string uname,  string passwd, int rank) {
+inline void AddAcc(string nickname, string uname,  string passwd, int rank, string hash, CryptoPP::SecByteBlock IV) {
 	int id = GetLastId();
 	if (id < 0) {
 		id = 0;
@@ -658,15 +680,15 @@ inline void AddAcc(string nickname, string uname,  string passwd, int rank) {
 		stringstream ss;
 		switch (i){
 			case 0: {
-				ss << "nickname" << id << ":" << nickname;
+				ss << "nickname" << id << ":" << encrypt(nickname, hash, CreateIVFromID(IV, id));
 				break;
 			}
 			case 1: {
-				ss << "uname" << id << ":" << uname;
+				ss << "uname" << id << ":" << encrypt(uname, hash, CreateIVFromID(IV, id));
 				break;
 			}
 			case 2: {
-				ss << "passwd" << id << ":" << passwd;
+				ss << "passwd" << id << ":" << encrypt(passwd, hash, CreateIVFromID(IV, id));
 				break;
 			}
 			case 3:{

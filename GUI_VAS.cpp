@@ -106,6 +106,7 @@ BOOL FILE_PATH_EXIST = FALSE;		//	Will be used to make sure there's a file path
 BOOL HAS_RANK = FALSE;				//	Will be used to check if a rank was selected
 HWND pw1, pw2;						//	Will store the edit controls for the passwords when setting up
 string HASHEDPW = "";				//	Will store the hashed password
+CryptoPP::SecByteBlock IV;			//	Will store the IV
 HINSTANCE cInstance;				//	Global variable for HINSTANCE
 HWND addnick, adduname, addpw;		//	Will store nickname, username and password when adding accounts
 HWND chnick, chuname, chpw;			//	Will store nickname, username and password when changing account info
@@ -296,7 +297,7 @@ void AddControlsMainMenu(HWND hwnd) {
 				stringstream ss;						//
 				ss << "nickname" << i << ":";			//	Getting the nickname
 				string nick = GetFromFile(ss.str());	//
-				string nick2 = decrypt(nick, HASHEDPW);	//
+				string nick2 = decrypt(nick, HASHEDPW, CreateIVFromID(IV, i));	//
 
 				stringstream ss2;							//
 				ss2 << "rank" << i << ":";					//	Getting the rank
@@ -381,12 +382,16 @@ LRESULT CALLBACK SetUpWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, L
 				if (str1 == str2) {
 					STAY_IN_MENU = TRUE;	//	Stay in the main menu loop
 					HASHEDPW = str1;								//
-					string buffer = encrypt(HASHEDPW, HASHEDPW);	//If the strings are correct
-					stringstream ss;								// the global hash variable will become the hash
-					ss << "Hash: " << buffer;						// and the encrypted hash will be sent to the 
-					string tofile = ss.str();						// file
-					SendToFile(tofile);						//
+					
+					IV = CreateIV();
 
+					string buffer = encrypt(HASHEDPW, HASHEDPW, IV);	//If the strings are correct
+					stringstream ss, ss2;								// the global hash variable will become the hash
+					ss << "Hash: " << buffer;							// and the encrypted hash will be sent to the 
+					ss2 << "IV: " << ByteToString(IV);					// file
+					SendToFile(ss.str());								//
+					SendToFile(ss2.str());								//
+					
 					DestroyWindow(hwnd);	// Destroying the setup window
 					return 0;
 				}
@@ -566,9 +571,10 @@ LRESULT CALLBACK CHKPWWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, L
 		{
 			string convertedpw = ConvertToString(checkpw).c_str();					//
 			string hashedconvertedpw = hashing(convertedpw);						// Getting the hash from the user and geting it ready to compare to the file
-			string encriphashpw = encrypt(hashedconvertedpw, hashedconvertedpw);	//
+			IV = StringToByte(GetFromFile("IV: "));									//
+			string encriphashpw = encrypt(hashedconvertedpw, hashedconvertedpw, IV);//
 
-			string pwfromfile = GetFromFile("Hash: ");	//Getting the string from the file
+			string pwfromfile = GetFromFile("Hash: ");	// Getting the string from the file
 
 			if (encriphashpw == pwfromfile) {	
 				STAY_IN_MENU = TRUE;			//
@@ -681,13 +687,9 @@ LRESULT CALLBACK AddAccWindowProcessMessages(HWND hwnd, UINT msg, WPARAM param, 
 				pass = ConvertToString(addpw);			//
 				uname = ConvertToString(adduname);		//
 
-				string nick2f = encrypt(nick.c_str(), HASHEDPW);			//
-				string uname2f = encrypt(uname.c_str(), HASHEDPW);			//encrypting the credentials
-				string pass2f = encrypt(pass.c_str(), HASHEDPW);			//
+				AddAcc(nick.c_str(), uname.c_str(), pass.c_str(), SELECTED_RANK, HASHEDPW, IV);	// sending the credentials to the file
 
-				AddAcc(nick2f, uname2f, pass2f, SELECTED_RANK);	//sending the credentials to the file
-
-				DestroyWindow(hwnd);	//destroying the window
+				DestroyWindow(hwnd);	// destroying the window
 				return 0;
 			}
 			else {
@@ -894,8 +896,8 @@ void AddControlsLOGIN(HWND hwnd) {
 	string unamefile = GetFromFile(ss.str());	//	From the file
 	string passwdfile = GetFromFile(ss2.str());	//
 
-	LOGIN_UNAME = decrypt(unamefile, HASHEDPW);		//	Decrypting the username and password
-	LOGIN_PASSWD = decrypt(passwdfile, HASHEDPW);	//
+	LOGIN_UNAME = decrypt(unamefile, HASHEDPW, CreateIVFromID(IV, LOGIN_ID));		//	Decrypting the username and password
+	LOGIN_PASSWD = decrypt(passwdfile, HASHEDPW, CreateIVFromID(IV, LOGIN_ID));	//
 
 	LOGIN_UNAME = RemoveLastChar(LOGIN_UNAME);		//	Removing their last char
 	LOGIN_PASSWD = RemoveLastChar(LOGIN_PASSWD);	//	(was generating a 2 at the end)
@@ -1157,19 +1159,19 @@ LRESULT CALLBACK ChangeAccWindowProcessMessages(HWND hwnd, UINT msg, WPARAM para
 			if (nick[0] != '\0') {	//	checking if nickname changed
 				stringstream ss;											//
 				ss << "nickname" << LOGIN_ID << ":";						//	Changing the info on the file
-				ChangeAccInfo(ss.str(), encrypt(nick.c_str(),HASHEDPW));	//	and setting CNK as true
+				ChangeAccInfo(ss.str(), encrypt(nick.c_str(),HASHEDPW, CreateIVFromID(IV, LOGIN_ID)));	//	and setting CNK as true
 				CNK = TRUE;													//
 			}
 			if (uname[0] != '\0') {	//	checking if username changed
 				stringstream ss;											//
 				ss << "uname" << LOGIN_ID << ":";							//	Changing the info on the file
-				ChangeAccInfo(ss.str(), encrypt(uname.c_str(), HASHEDPW));	//	and setting CNM as true
+				ChangeAccInfo(ss.str(), encrypt(uname.c_str(), HASHEDPW, CreateIVFromID(IV, LOGIN_ID)));	//	and setting CNM as true
 				CNM = TRUE;													//
 			}
 			if (passwd[0] != '\0') {	//	Checking if password changed
 				stringstream ss;											//
 				ss << "passwd" << LOGIN_ID << ":";							//	Changing the info on the file
-				ChangeAccInfo(ss.str(), encrypt(passwd.c_str(),HASHEDPW));	//	and setting CPW as true
+				ChangeAccInfo(ss.str(), encrypt(passwd.c_str(),HASHEDPW, CreateIVFromID(IV, LOGIN_ID)));	//	and setting CPW as true
 				CPW = TRUE;													//
 			}
 			if (CNK == CNM && CNM == CPW) {	//	checking if all variables are the same
@@ -1362,7 +1364,7 @@ void AddControlsDeleteAcc(HWND hwnd) {
 	//	controls for delete account window
 	stringstream ss, ssf;														//
 	ssf << "nickname" << LOGIN_ID << ":";										//	Getting the nickname of the account that will be deleted
-	ss << "Account nickname = " << decrypt(GetFromFile(ssf.str()), HASHEDPW);	//
+	ss << "Account nickname = " << decrypt(GetFromFile(ssf.str()), HASHEDPW, CreateIVFromID(IV, LOGIN_ID));	//
 	CreateWindow("static", "ARE YOU SURE YOU WANT TO DELETE THIS ACCOUNT?", WS_VISIBLE | WS_CHILD, 5, 5, 270, 40, hwnd, NULL, NULL, NULL);	//
 	CreateWindow("static", ss.str().c_str(), WS_VISIBLE | WS_CHILD, 5, 50, 295, 20, hwnd, NULL, NULL, NULL);								//	Showing what account will be deleted for the user
 	CreateWindow("button", "CONFIRM", WS_VISIBLE | WS_CHILD | WS_BORDER, 5, 75, 75, 20, hwnd, (HMENU)CONFIRM_DELETE_BTN, NULL, NULL);	//	Making sure the user wants to delete the account
