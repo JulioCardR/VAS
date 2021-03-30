@@ -18,7 +18,7 @@ To make your own build:
   * VAS creates a configuration file that stores the account informations, the master password and the location of the Riot Client. Whenever you choose what account you want to use VAS will open the game for you and simulate keystrokes to type your username and password for you.
 
 * Is it safe?
-  * All data is stored locally. Account information and the master password uses AES 256 encryption. That being said, the encryption wasn't implemented flawlessly, if someone has access to you machine and really wants your account information they would problably be able to get it.
+  * All data is stored locally. Account information and the master password uses AES 256 encryption. That being said, the encryption wasn't implemented flawlessly, if someone has access to you machine and really wants your account information they would problably be able to get it. (The encryption has chagend making it more secure, still, don't expect it to be flawless).
 
 * I don't remeber my master password, what should I do?
   * Just delete the VAS.conf file, go through the setup and add your accounts again. VAS is not there to remeber your account information, it's just a tool to make it easier for you to login.
