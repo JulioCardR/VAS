@@ -25,4 +25,4 @@ To make your own build:
 
 # Still to come:
 * ~~tab and enter support~~ (Done Feb 20/2021)
-* Might change the way encryption works to make it more secure.
+* ~~Might change the way encryption works to make it more secure.~~ (Done Mar 30/2021)
